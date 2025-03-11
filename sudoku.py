@@ -69,7 +69,7 @@ class sudoku:
         self.taille = taille * taille
         self.grille = [[0 for i in range(self.taille)] for j in range(self.taille)]
         self.solutions = [[list_solutions(self.taille) for i in range(self.taille)] for j in range(self.taille)]
-
+        self.confirmations_chiffres = []
 
     def sub_matrice_to_position(self, nmatrice, i):
         x = (nmatrice % self.racine) * self.racine + (i % self.racine)
@@ -78,6 +78,14 @@ class sudoku:
 
     def find_matrice(self, x, y):
         return (x // self.racine) + (y // self.racine) * self.racine
+    
+    def get_position_from_entite_type(self, entite_type, entite, emplacement):
+        if(entite_type == 0):
+            return self.sub_matrice_to_position(entite, emplacement)
+        elif(entite_type == 1):
+            return entite, emplacement
+        else:
+            return emplacement, entite
 
     def supprimer_impossibilites(self, x, y):
         flag = False
@@ -96,30 +104,45 @@ class sudoku:
         nb_apparitions = 0
         for valeur in list(range(1, self.taille + 1, 1)):
             for entite in range(self.taille):
-                # for type_entite in range(3):
-                type_entite = 0
-                nb_apparitions = 0
-                x_mem, y_mem = 0, 0
-                for emplacement in range(self.taille):
+                for type_entite in range(3):
+                    nb_apparitions = 0
+                    list_positions = []
+                    for emplacement in range(self.taille):
+                        x,y = self.get_position_from_entite_type(type_entite, entite, emplacement)
+                        liste_solutions1 = self.solutions[y][x]
+                        if(liste_solutions1.contains(valeur)):
+                            nb_apparitions = nb_apparitions + 1
+                            list_positions.append([x, y])
 
-                    if(type_entite == 0):
-                        x, y = self.sub_matrice_to_position(entite, emplacement)
-                    elif(type_entite == 1):
-                        x, y = entite, emplacement
-                    else:
-                        x, y = emplacement, entite
-                    liste_solutions1 = self.solutions[y][x]
-                    if(liste_solutions1.contains(valeur)):
-                        nb_apparitions = nb_apparitions + 1
-                        x_mem, y_mem = x, y
+                    if(nb_apparitions == 1):
+                        [x,y] = list_positions[0]
+                        self.confirmer_chiffre(x,y,valeur)
+                        flag_modification = True
 
-                if(nb_apparitions == 1):
-                    self.grille[y_mem][x_mem] = valeur
-                    self.solutions[y_mem][x_mem].possibilites = []
-                    flag_modification = True
-                    self.affiche(x_mem, y_mem)
+                    elif (False and type_entite == 0 and
+                        nb_apparitions <= self.racine and nb_apparitions != 0) :
+                        # si les valeurs sont alignées dans une matrice alors on supprime les possibilités dans la ligne
+                        if(all(pos[0] == list_positions[0][0] for pos in list_positions)):
+                            for y_position in range(self.taille):
+                                x_position = list_positions[0][0]
+                                if(self.find_matrice(x_position, y_position) != entite):
+                                    try:
+                                        self.solutions[y_position][x_position].possibilites.remove(valeur)
+                                    except:
+                                        pass
 
+                        elif all(pos[1] == list_positions[0][1] for pos in list_positions):
+                            for x_position in range(self.taille):
+                                y_position = list_positions[0][1]
+                                if(self.find_matrice(x_position, y_position) != entite):
+                                    try:
+                                        self.solutions[y_position][x_position].possibilites.remove(valeur)
+                                    except:
+                                        pass
         return flag_modification
+    
+    def confirmer_chiffre(self, x, y, valeur):
+        self.confirmations_chiffres.append([x,y,valeur])
 
     def etape_resolution(self):
         modif = False
@@ -135,10 +158,14 @@ class sudoku:
         for x in range(self.taille):
             for y in range(self.taille):
                     if(len(self.solutions[y][x].possibilites) == 1):
-                        self.grille[y][x] = self.solutions[y][x].possibilites[0]
-                        self.solutions[y][x].possibilites = []
-                        self.affiche(x, y)
+                        self.confirmer_chiffre(x,y,self.solutions[y][x].possibilites[0])
                         modif = True
+        
+        for confs in self.confirmations_chiffres:
+            x,y,val = confs
+            self.grille[y][x] = val
+            self.solutions[y][x].possibilities = []
+            self.affiche(x,y)
         return modif
         
 
@@ -177,8 +204,9 @@ class sudoku:
         print()
         print()
         
-sudoku_solver = sudoku(3)
-sudoku_solver.load_grille(grille_9x9)
+sudoku_solver = sudoku(2)
+#sudoku_solver.load_grille(grille_9x9)
+sudoku_solver.load_grille(grille_4x4)
 sudoku_solver.affiche()
 
 while sudoku_solver.etape_resolution():
