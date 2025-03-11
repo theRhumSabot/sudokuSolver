@@ -17,7 +17,7 @@ color_end = "\033[0m"
 grille_4x4 = [
     [1, 0, 0, 4],
     [0, 0, 0, 0],
-    [0, 0, 0, 1],
+    [0, 4, 0, 1],
     [3, 0, 0, 2]
 ]
 
@@ -70,6 +70,7 @@ class sudoku:
         self.grille = [[0 for i in range(self.taille)] for j in range(self.taille)]
         self.solutions = [[list_solutions(self.taille) for i in range(self.taille)] for j in range(self.taille)]
         self.confirmations_chiffres = []
+        self.brute_force_usage = 0
 
     def sub_matrice_to_position(self, nmatrice, i):
         x = (nmatrice % self.racine) * self.racine + (i % self.racine)
@@ -90,6 +91,9 @@ class sudoku:
     def supprimer_impossibilites(self, x, y):
         flag = False
         list_solution = self.solutions[y][x]
+        if(self.grille[y][x] != 0) and (len(list_solution.possibilites) != 0):
+            self.solutions[y][x].possibilites = []
+            return True
         for valeur in self.solutions[y][x].possibilites.copy():
             for i in range(self.taille):
                 x1, y1 = self.sub_matrice_to_position(self.find_matrice(x,y), i)
@@ -98,6 +102,39 @@ class sudoku:
                     flag = True
                     break
         return flag
+
+    def verifie_alignements(self):
+        modification = False
+        for valeur in list(range(1, self.taille + 1, 1)):
+            for matrice in range(self.taille):
+                list_emplacements = []
+                for emplacement in range(self.taille):
+                    x,y = self.sub_matrice_to_position(matrice, emplacement)
+                    if(self.solutions[y][x].contains(valeur)):
+                        list_emplacements.append([x,y])
+
+                if(len(list_emplacements) > 1 and len(list_emplacements) <= self.racine):
+                        # si les valeurs sont alignées dans une matrice alors on supprime les possibilités dans la ligne
+                        if(all(pos[0] == list_emplacements[0][0] for pos in list_emplacements)):
+                            for y_position in range(self.taille):
+                                x_position = list_emplacements[0][0]
+                                if(self.find_matrice(x_position, y_position) != matrice):
+                                    try:
+                                        self.solutions[y_position][x_position].possibilites.remove(valeur)
+                                        modification = True
+                                    except:
+                                        pass
+
+                        elif all(pos[1] == list_emplacements[0][1] for pos in list_emplacements):
+                            for x_position in range(self.taille):
+                                y_position = list_emplacements[0][1]
+                                if(self.find_matrice(x_position, y_position) != matrice):
+                                    try:
+                                        self.solutions[y_position][x_position].possibilites.remove(valeur)
+                                        modification = True
+                                    except:
+                                        pass
+        return modification
     
     def verifie_emplacement(self):
         flag_modification = False
@@ -119,38 +156,21 @@ class sudoku:
                         self.confirmer_chiffre(x,y,valeur)
                         flag_modification = True
 
-                    elif (False and type_entite == 0 and
-                        nb_apparitions <= self.racine and nb_apparitions != 0) :
-                        # si les valeurs sont alignées dans une matrice alors on supprime les possibilités dans la ligne
-                        if(all(pos[0] == list_positions[0][0] for pos in list_positions)):
-                            for y_position in range(self.taille):
-                                x_position = list_positions[0][0]
-                                if(self.find_matrice(x_position, y_position) != entite):
-                                    try:
-                                        self.solutions[y_position][x_position].possibilites.remove(valeur)
-                                    except:
-                                        pass
-
-                        elif all(pos[1] == list_positions[0][1] for pos in list_positions):
-                            for x_position in range(self.taille):
-                                y_position = list_positions[0][1]
-                                if(self.find_matrice(x_position, y_position) != entite):
-                                    try:
-                                        self.solutions[y_position][x_position].possibilites.remove(valeur)
-                                    except:
-                                        pass
         return flag_modification
     
     def confirmer_chiffre(self, x, y, valeur):
-        self.confirmations_chiffres.append([x,y,valeur])
+        self.grille[y][x] = valeur
+        self.affiche(x,y)
 
     def etape_resolution(self):
         modif = False
         for y in range(self.taille):
             for x in range(self.taille):
-                if(self.grille[y][x] == 0):
-                    if(self.supprimer_impossibilites(x, y)) :
-                        modif = True
+                if(self.supprimer_impossibilites(x, y)) :
+                    modif = True
+        
+        if(self.verifie_alignements() == True):
+            modif = True
 
         if(self.verifie_emplacement() == True):
             modif = True
@@ -160,12 +180,7 @@ class sudoku:
                     if(len(self.solutions[y][x].possibilites) == 1):
                         self.confirmer_chiffre(x,y,self.solutions[y][x].possibilites[0])
                         modif = True
-        
-        for confs in self.confirmations_chiffres:
-            x,y,val = confs
-            self.grille[y][x] = val
-            self.solutions[y][x].possibilities = []
-            self.affiche(x,y)
+    
         return modif
         
 
@@ -203,11 +218,35 @@ class sudoku:
                 print("-", end=" ")
         print()
         print()
+
+    def brute_force(self):
+        while self.etape_resolution():
+            pass
+
+        # Si on bloque lors de la résolution, on va définir arbitrairement une valeur pour une case vide et voir si ça fonctionne
+        for x in range(self.taille):
+            for y in range(self.taille):
+                if(self.grille[y][x] == 0 and len(self.solutions[y][x].possibilites)) != 0:
+                    while len(self.solutions[y][x].possibilites) != 0:
+                        brute_force_solver = sudoku(self.racine)
+                        brute_force_solver.load_grille(self.grille)
+                        brute_force_solver.grille[y][x] = self.solutions[y][x].possibilites[0]
+                        if(brute_force_solver.brute_force()):
+                            self.confirmer_chiffre(x, y, self.solutions[y][x].possibilites[0])
+                            self.brute_force_usage = self.brute_force_usage + brute_force_solver.brute_force_usage
+                            return True
+                        else:
+                            self.solutions[y][x].possibilites.pop(0)
+
+                else:
+                    return False
+        print("Usage de la force brute :", self.brute_force_usage)
+        return True
+
         
 sudoku_solver = sudoku(2)
-#sudoku_solver.load_grille(grille_9x9)
+# sudoku_solver.load_grille(grille_9x9)
 sudoku_solver.load_grille(grille_4x4)
 sudoku_solver.affiche()
 
-while sudoku_solver.etape_resolution():
-    pass
+sudoku_solver.brute_force()
