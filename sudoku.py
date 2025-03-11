@@ -11,6 +11,21 @@ grille_9x9 = [
     [0, 9, 0,  0, 0, 0,  0, 0, 0],
     [0, 8, 4,  0, 0, 0,  0, 0, 8]
 ]
+
+grille_9x9_2 = [
+    [4,0,6, 0,0,0, 0,0,0],
+    [0,0,7, 0,3,0, 0,0,4],
+    [0,8,0, 0,5,0, 7,0,0],
+
+    [0,1,0, 0,9,0, 8,0,0],
+    [0,0,0, 0,0,0, 0,0,0],
+    [0,7,0, 0,0,3, 0,2,0],
+
+    [1,6,0, 0,0,2, 0,0,8],
+    [0,3,0, 0,0,1, 9,0,0],
+    [0,0,0, 0,0,6, 4,0,0],
+]
+
 color_red = "\033[91m"
 color_end = "\033[0m"
 
@@ -64,13 +79,14 @@ class list_placements:
 
 
 class sudoku:
-    def __init__(self, taille):
+    def __init__(self, taille, display=True):
         self.racine = taille
         self.taille = taille * taille
         self.grille = [[0 for i in range(self.taille)] for j in range(self.taille)]
         self.solutions = [[list_solutions(self.taille) for i in range(self.taille)] for j in range(self.taille)]
         self.confirmations_chiffres = []
         self.brute_force_usage = 0
+        self.display = display
 
     def sub_matrice_to_position(self, nmatrice, i):
         x = (nmatrice % self.racine) * self.racine + (i % self.racine)
@@ -159,6 +175,8 @@ class sudoku:
         return flag_modification
     
     def confirmer_chiffre(self, x, y, valeur):
+        if(self.grille[y][x] != 0):
+            return
         self.grille[y][x] = valeur
         self.affiche(x,y)
 
@@ -198,6 +216,10 @@ class sudoku:
                     self.solutions[i][j].possibilites = []
 
     def affiche(self, x=-1, y=-1):
+        if self.display == False:
+            return
+        
+
         for i in range(self.taille):
             if(i % self.racine == 0):
                 for j in range(self.taille + self.racine + 1 ):
@@ -228,7 +250,7 @@ class sudoku:
             for y in range(self.taille):
                 if(self.grille[y][x] == 0 and len(self.solutions[y][x].possibilites)) != 0:
                     while len(self.solutions[y][x].possibilites) != 0:
-                        brute_force_solver = sudoku(self.racine)
+                        brute_force_solver = sudoku(self.racine, False)
                         brute_force_solver.load_grille(self.grille)
                         brute_force_solver.grille[y][x] = self.solutions[y][x].possibilites[0]
                         if(brute_force_solver.brute_force()):
@@ -237,16 +259,17 @@ class sudoku:
                             return True
                         else:
                             self.solutions[y][x].possibilites.pop(0)
-
+                            if self.display:
+                                print("Erreur: pas de solution possible pour cette grille")
                 else:
                     return False
         print("Usage de la force brute :", self.brute_force_usage)
         return True
 
         
-sudoku_solver = sudoku(2)
+sudoku_solver = sudoku(3)
 # sudoku_solver.load_grille(grille_9x9)
-sudoku_solver.load_grille(grille_4x4)
+sudoku_solver.load_grille(grille_9x9_2)
 sudoku_solver.affiche()
 
 sudoku_solver.brute_force()
